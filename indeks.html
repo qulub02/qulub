@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="id">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Health Tracker</title>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      box-sizing: border-box;
+    }
+    
+    * {
+      box-sizing: border-box;
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+ </head>
+ <body class="w-full min-h-full">
+  <div id="app" class="w-full min-h-full"></div>
+  <script>
+    const defaultConfig = {
+      background_color: "#f0f9ff",
+      surface_color: "#ffffff",
+      text_color: "#0f172a",
+      primary_action_color: "#3b82f6",
+      secondary_action_color: "#64748b",
+      font_family: "Inter",
+      font_size: 16,
+      app_title: "Pelacak Kesehatan Digital",
+      app_subtitle: "Developer M.Miftahul Qulub",
+      height_label: "Tinggi Badan (cm)",
+      weight_label: "Berat Badan (kg)",
+      blood_sugar_label: "Gula Darah (mg/dL)",
+      button_text: "Simpan Data"
+    };
+
+    let allRecords = [];
+    let isLoading = false;
+
+    const dataHandler = {
+      onDataChanged(data) {
+        allRecords = data;
+        renderHistory();
+        updateStats();
+      }
+    };
+
+    async function onConfigChange(config) {
+      const customFont = config.font_family || defaultConfig.font_family;
+      const baseFontStack = 'system-ui, -apple-system, sans-serif';
+      const baseSize = config.font_size || defaultConfig.font_size;
+      
+      const backgroundColor = config.background_color || defaultConfig.background_color;
+      const surfaceColor = config.surface_color || defaultConfig.surface_color;
+      const textColor = config.text_color || defaultConfig.text_color;
+      const primaryColor = config.primary_action_color || defaultConfig.primary_action_color;
+      const secondaryColor = config.secondary_action_color || defaultConfig.secondary_action_color;
+
+      document.body.style.backgroundColor = backgroundColor;
+      document.body.style.fontFamily = `${customFont}, ${baseFontStack}`;
+
+      const appTitle = config.app_title || defaultConfig.app_title;
+      const appSubtitle = config.app_subtitle || defaultConfig.app_subtitle;
+      const heightLabel = config.height_label || defaultConfig.height_label;
+      const weightLabel = config.weight_label || defaultConfig.weight_label;
+      const bloodSugarLabel = config.blood_sugar_label || defaultConfig.blood_sugar_label;
+      const buttonText = config.button_text || defaultConfig.button_text;
+
+      const app = document.getElementById('app');
+      app.innerHTML = `
+        <div class="w-full min-h-full p-6" style="background-color: ${backgroundColor};">
+          <div class="max-w-6xl mx-auto">
+            <!-- Header -->
+            <header class="text-center mb-8">
+              <h1 class="font-bold mb-2" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 2}px; color: ${textColor};">${appTitle}</h1>
+              <p style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize}px; color: ${secondaryColor};">${appSubtitle}</p>
+            </header>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <!-- Form Input -->
+              <div class="rounded-2xl shadow-lg p-6" style="background-color: ${surfaceColor};">
+                <h2 class="font-bold mb-6" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 1.5}px; color: ${textColor};">📊 Input Data Kesehatan</h2>
+                
+                <form id="healthForm" class="space-y-4">
+                  <div>
+                    <label for="height" class="block mb-2 font-medium" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.9}px; color: ${textColor};">${heightLabel}</label>
+                    <input 
+                      type="number" 
+                      id="height" 
+                      step="0.1"
+                      required
+                      class="w-full px-4 py-3 rounded-lg border-2 focus:outline-none focus:ring-2"
+                      style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize}px; color: ${textColor}; background-color: ${backgroundColor}; border-color: ${secondaryColor};"
+                      placeholder="Contoh: 170"
+                    >
+                  </div>
+
+                  <div>
+                    <label for="weight" class="block mb-2 font-medium" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.9}px; color: ${textColor};">${weightLabel}</label>
+                    <input 
+                      type="number" 
+                      id="weight" 
+                      step="0.1"
+                      required
+                      class="w-full px-4 py-3 rounded-lg border-2 focus:outline-none focus:ring-2"
+                      style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize}px; color: ${textColor}; background-color: ${backgroundColor}; border-color: ${secondaryColor};"
+                      placeholder="Contoh: 65"
+                    >
+                  </div>
+
+                  <div>
+                    <label for="bloodSugar" class="block mb-2 font-medium" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.9}px; color: ${textColor};">${bloodSugarLabel}</label>
+                    <input 
+                      type="number" 
+                      id="bloodSugar" 
+                      step="1"
+                      required
+                      class="w-full px-4 py-3 rounded-lg border-2 focus:outline-none focus:ring-2"
+                      style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize}px; color: ${textColor}; background-color: ${backgroundColor}; border-color: ${secondaryColor};"
+                      placeholder="Contoh: 100"
+                    >
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    id="submitBtn"
+                    class="w-full py-3 px-6 rounded-lg font-semibold transition-all duration-200"
+                    style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize}px; background-color: ${primaryColor}; color: white;"
+                  >${buttonText}</button>
+                </form>
+
+                <!-- Benefits Section -->
+                <div class="mt-8 pt-6" style="border-top: 2px solid ${backgroundColor};">
+                  <h3 class="font-bold mb-4" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 1.2}px; color: ${textColor};">✨ Manfaat Monitoring Kesehatan</h3>
+                  <div class="space-y-3">
+                    <div class="flex items-start gap-3">
+                      <span style="font-size: ${baseSize * 1.2}px;">📏</span>
+                      <div>
+                        <p class="font-semibold" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.9}px; color: ${textColor};">Tinggi Badan</p>
+                        <p style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.8}px; color: ${secondaryColor};">Memantau pertumbuhan dan menghitung BMI</p>
+                      </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                      <span style="font-size: ${baseSize * 1.2}px;">⚖️</span>
+                      <div>
+                        <p class="font-semibold" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.9}px; color: ${textColor};">Berat Badan</p>
+                        <p style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.8}px; color: ${secondaryColor};">Menjaga berat ideal dan kesehatan jantung</p>
+                      </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                      <span style="font-size: ${baseSize * 1.2}px;">🩸</span>
+                      <div>
+                        <p class="font-semibold" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.9}px; color: ${textColor};">Gula Darah</p>
+                        <p style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.8}px; color: ${secondaryColor};">Mencegah diabetes dan komplikasinya</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Stats & History -->
+              <div class="space-y-6">
+                <!-- Stats Cards -->
+                <div id="statsContainer" class="grid grid-cols-1 gap-4">
+                  <!-- Stats will be rendered here -->
+                </div>
+
+                <!-- History -->
+                <div class="rounded-2xl shadow-lg p-6" style="background-color: ${surfaceColor};">
+                  <h2 class="font-bold mb-4" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 1.5}px; color: ${textColor};">📋 Riwayat Data</h2>
+                  <div id="historyList" class="space-y-3 max-h-96 overflow-y-auto">
+                    <!-- History will be rendered here -->
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      setupFormHandler();
+      renderHistory();
+      updateStats();
+    }
+
+    function setupFormHandler() {
+      const form = document.getElementById('healthForm');
+      const submitBtn = document.getElementById('submitBtn');
+      
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        if (allRecords.length >= 999) {
+          showMessage('Batas maksimal 999 data tercapai. Hapus beberapa data terlebih dahulu.', 'error');
+          return;
+        }
+
+        if (isLoading) return;
+        
+        isLoading = true;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Menyimpan...';
+        submitBtn.style.opacity = '0.6';
+        
+        const height = parseFloat(document.getElementById('height').value);
+        const weight = parseFloat(document.getElementById('weight').value);
+        const bloodSugar = parseFloat(document.getElementById('bloodSugar').value);
+        
+        const now = new Date();
+        const record = {
+          id: `record_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          date: now.toISOString(),
+          height: height,
+          weight: weight,
+          bloodSugar: bloodSugar,
+          timestamp: Date.now()
+        };
+        
+        const result = await window.dataSdk.create(record);
+        
+        isLoading = false;
+        submitBtn.disabled = false;
+        const config = window.elementSdk.config;
+        submitBtn.textContent = config.button_text || defaultConfig.button_text;
+        submitBtn.style.opacity = '1';
+        
+        if (result.isOk) {
+          form.reset();
+          showMessage('Data berhasil disimpan! ✅', 'success');
+        } else {
+          showMessage('Gagal menyimpan data. Silakan coba lagi.', 'error');
+        }
+      });
+    }
+
+    function renderHistory() {
+      const historyList = document.getElementById('historyList');
+      if (!historyList) return;
+
+      const config = window.elementSdk.config;
+      const customFont = config.font_family || defaultConfig.font_family;
+      const baseFontStack = 'system-ui, -apple-system, sans-serif';
+      const baseSize = config.font_size || defaultConfig.font_size;
+      const surfaceColor = config.surface_color || defaultConfig.surface_color;
+      const backgroundColor = config.background_color || defaultConfig.background_color;
+      const textColor = config.text_color || defaultConfig.text_color;
+      const secondaryColor = config.secondary_action_color || defaultConfig.secondary_action_color;
+
+      if (allRecords.length === 0) {
+        historyList.innerHTML = `
+          <p class="text-center py-8" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.9}px; color: ${secondaryColor};">Belum ada data tersimpan</p>
+        `;
+        return;
+      }
+
+      const sortedRecords = [...allRecords].sort((a, b) => b.timestamp - a.timestamp);
+      
+      historyList.innerHTML = sortedRecords.map(record => {
+        const date = new Date(record.date);
+        const formattedDate = date.toLocaleDateString('id-ID', { 
+          day: '2-digit', 
+          month: 'short', 
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        
+        const bmi = (record.weight / ((record.height / 100) ** 2)).toFixed(1);
+        
+        return `
+          <div class="p-4 rounded-lg" style="background-color: ${backgroundColor}; border-left: 4px solid ${config.primary_action_color || defaultConfig.primary_action_color};">
+            <div class="flex justify-between items-start mb-2">
+              <span class="font-semibold" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.85}px; color: ${textColor};">${formattedDate}</span>
+              <button 
+                onclick="deleteRecord('${record.__backendId}')" 
+                class="transition-colors duration-200" 
+                style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.85}px; color: ${secondaryColor};"
+              >🗑️</button>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <p style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.75}px; color: ${secondaryColor};">Tinggi</p>
+                <p class="font-semibold" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.85}px; color: ${textColor};">${record.height} cm</p>
+              </div>
+              <div>
+                <p style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.75}px; color: ${secondaryColor};">Berat</p>
+                <p class="font-semibold" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.85}px; color: ${textColor};">${record.weight} kg</p>
+              </div>
+              <div>
+                <p style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.75}px; color: ${secondaryColor};">Gula Darah</p>
+                <p class="font-semibold" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.85}px; color: ${textColor};">${record.bloodSugar} mg/dL</p>
+              </div>
+              <div>
+                <p style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.75}px; color: ${secondaryColor};">BMI</p>
+                <p class="font-semibold" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.85}px; color: ${textColor};">${bmi}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateStats() {
+      const statsContainer = document.getElementById('statsContainer');
+      if (!statsContainer) return;
+
+      const config = window.elementSdk.config;
+      const customFont = config.font_family || defaultConfig.font_family;
+      const baseFontStack = 'system-ui, -apple-system, sans-serif';
+      const baseSize = config.font_size || defaultConfig.font_size;
+      const surfaceColor = config.surface_color || defaultConfig.surface_color;
+      const textColor = config.text_color || defaultConfig.text_color;
+      const secondaryColor = config.secondary_action_color || defaultConfig.secondary_action_color;
+      const primaryColor = config.primary_action_color || defaultConfig.primary_action_color;
+
+      if (allRecords.length === 0) {
+        statsContainer.innerHTML = `
+          <div class="rounded-2xl shadow-lg p-6 text-center" style="background-color: ${surfaceColor};">
+            <p style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize}px; color: ${secondaryColor};">Belum ada statistik tersedia</p>
+          </div>
+        `;
+        return;
+      }
+
+      const latest = allRecords[allRecords.length - 1];
+      const avgWeight = (allRecords.reduce((sum, r) => sum + r.weight, 0) / allRecords.length).toFixed(1);
+      const avgBloodSugar = (allRecords.reduce((sum, r) => sum + r.bloodSugar, 0) / allRecords.length).toFixed(0);
+      const bmi = (latest.weight / ((latest.height / 100) ** 2)).toFixed(1);
+
+      let bmiStatus = '';
+      let bmiColor = primaryColor;
+      if (bmi < 18.5) {
+        bmiStatus = 'Kurang';
+        bmiColor = '#f59e0b';
+      } else if (bmi < 25) {
+        bmiStatus = 'Normal';
+        bmiColor = '#10b981';
+      } else if (bmi < 30) {
+        bmiStatus = 'Berlebih';
+        bmiColor = '#f59e0b';
+      } else {
+        bmiStatus = 'Obesitas';
+        bmiColor = '#ef4444';
+      }
+
+      statsContainer.innerHTML = `
+        <div class="rounded-xl shadow p-4" style="background-color: ${surfaceColor};">
+          <p class="mb-1" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.85}px; color: ${secondaryColor};">BMI Terakhir</p>
+          <p class="font-bold mb-1" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 1.8}px; color: ${textColor};">${bmi}</p>
+          <span class="inline-block px-3 py-1 rounded-full text-white" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.75}px; background-color: ${bmiColor};">${bmiStatus}</span>
+        </div>
+
+        <div class="rounded-xl shadow p-4" style="background-color: ${surfaceColor};">
+          <p class="mb-1" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.85}px; color: ${secondaryColor};">Rata-rata Berat</p>
+          <p class="font-bold" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 1.8}px; color: ${textColor};">${avgWeight} <span style="font-size: ${baseSize}px;">kg</span></p>
+        </div>
+
+        <div class="rounded-xl shadow p-4" style="background-color: ${surfaceColor};">
+          <p class="mb-1" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.85}px; color: ${secondaryColor};">Rata-rata Gula Darah</p>
+          <p class="font-bold" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 1.8}px; color: ${textColor};">${avgBloodSugar} <span style="font-size: ${baseSize}px;">mg/dL</span></p>
+        </div>
+
+        <div class="rounded-xl shadow p-4" style="background-color: ${surfaceColor};">
+          <p class="mb-1" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 0.85}px; color: ${secondaryColor};">Total Data</p>
+          <p class="font-bold" style="font-family: ${customFont}, ${baseFontStack}; font-size: ${baseSize * 1.8}px; color: ${textColor};">${allRecords.length} <span style="font-size: ${baseSize}px;">catatan</span></p>
+        </div>
+      `;
+    }
+
+    async function deleteRecord(backendId) {
+      const record = allRecords.find(r => r.__backendId === backendId);
+      if (!record) return;
+
+      if (isLoading) return;
+      isLoading = true;
+
+      const result = await window.dataSdk.delete(record);
+      
+      isLoading = false;
+
+      if (result.isOk) {
+        showMessage('Data berhasil dihapus! 🗑️', 'success');
+      } else {
+        showMessage('Gagal menghapus data. Silakan coba lagi.', 'error');
+      }
+    }
+
+    function showMessage(message, type) {
+      const existingToast = document.getElementById('toast');
+      if (existingToast) {
+        existingToast.remove();
+      }
+
+      const config = window.elementSdk.config;
+      const customFont = config.font_family || defaultConfig.font_family;
+      const baseFontStack = 'system-ui, -apple-system, sans-serif';
+      const baseSize = config.font_size || defaultConfig.font_size;
+      const bgColor = type === 'success' ? '#10b981' : '#ef4444';
+
+      const toast = document.createElement('div');
+      toast.id = 'toast';
+      toast.className = 'fixed bottom-6 right-6 px-6 py-3 rounded-lg shadow-lg text-white z-50';
+      toast.style.fontFamily = `${customFont}, ${baseFontStack}`;
+      toast.style.fontSize = `${baseSize * 0.9}px`;
+      toast.style.backgroundColor = bgColor;
+      toast.textContent = message;
+      
+      document.body.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
+    }
+
+    async function init() {
+      const initResult = await window.dataSdk.init(dataHandler);
+      if (!initResult.isOk) {
+        console.error("Failed to initialize data SDK");
+        return;
+      }
+
+      if (window.elementSdk) {
+        window.elementSdk.init({
+          defaultConfig,
+          onConfigChange,
+          mapToCapabilities: (config) => ({
+            recolorables: [
+              {
+                get: () => config.background_color || defaultConfig.background_color,
+                set: (value) => {
+                  config.background_color = value;
+                  window.elementSdk.setConfig({ background_color: value });
+                }
+              },
+              {
+                get: () => config.surface_color || defaultConfig.surface_color,
+                set: (value) => {
+                  config.surface_color = value;
+                  window.elementSdk.setConfig({ surface_color: value });
+                }
+              },
+              {
+                get: () => config.text_color || defaultConfig.text_color,
+                set: (value) => {
+                  config.text_color = value;
+                  window.elementSdk.setConfig({ text_color: value });
+                }
+              },
+              {
+                get: () => config.primary_action_color || defaultConfig.primary_action_color,
+                set: (value) => {
+                  config.primary_action_color = value;
+                  window.elementSdk.setConfig({ primary_action_color: value });
+                }
+              },
+              {
+                get: () => config.secondary_action_color || defaultConfig.secondary_action_color,
+                set: (value) => {
+                  config.secondary_action_color = value;
+                  window.elementSdk.setConfig({ secondary_action_color: value });
+                }
+              }
+            ],
+            borderables: [],
+            fontEditable: {
+              get: () => config.font_family || defaultConfig.font_family,
+              set: (value) => {
+                config.font_family = value;
+                window.elementSdk.setConfig({ font_family: value });
+              }
+            },
+            fontSizeable: {
+              get: () => config.font_size || defaultConfig.font_size,
+              set: (value) => {
+                config.font_size = value;
+                window.elementSdk.setConfig({ font_size: value });
+              }
+            }
+          }),
+          mapToEditPanelValues: (config) => new Map([
+            ["app_title", config.app_title || defaultConfig.app_title],
+            ["app_subtitle", config.app_subtitle || defaultConfig.app_subtitle],
+            ["height_label", config.height_label || defaultConfig.height_label],
+            ["weight_label", config.weight_label || defaultConfig.weight_label],
+            ["blood_sugar_label", config.blood_sugar_label || defaultConfig.blood_sugar_label],
+            ["button_text", config.button_text || defaultConfig.button_text]
+          ])
+        });
+      }
+    }
+
+    init();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9a402b717236ce55',t:'MTc2NDA2MzQ3MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
